@@ -258,7 +258,7 @@ function setUpTerminal() {
             let link =
               `<a href="javascript:void(0);"
                 onclick="gotoLocation('${locationId}');"
-                style="color:FFFF00">${toHumanReadable(locationId)}</a>`;
+                style="color:#FFFF00">${toHumanReadable(locationId)}</a>`;
             term.echo($(link));
           }
         } else {

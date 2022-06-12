@@ -1,6 +1,6 @@
 let global = {
   baseURL: "https://mudnix.dantefalzone.repl.co",
-  frontendVersion: "0.4.1",
+  frontendVersion: "0.4.2",
   backendVersion: null,
 
   messageEventSource: null,

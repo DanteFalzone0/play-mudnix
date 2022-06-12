@@ -1,6 +1,6 @@
 let global = {
   baseURL: "https://mudnix.dantefalzone.repl.co",
-  frontendVersion: "0.4.2",
+  frontendVersion: "0.4.3",
   backendVersion: null,
 
   messageEventSource: null,
@@ -100,7 +100,7 @@ function help() {
   }
 }
 
-function sha256() {
+function sha256(str) {
   let term = $.terminal.active();
   term.echo("SHA-256 hash of " + str + ":");
   fetch(`${global.baseURL}/hash/sha256?s=${str}`)

@@ -28,7 +28,8 @@ let global = {
     "map": "lists all the locations adjacent to your current location as clickable links",
     "open-chest": "opens a treasure chest if you've found one",
     "inventory": "shows you what's in your inventory",
-    "check-connection": "listen to see if the server is online"
+    "check-connection": "listen to see if the server is online",
+    "conn": "alias for `check-connection`"
   },
 
   activeTreasureChest: null
@@ -68,6 +69,45 @@ function toHumanReadable(locationIdString) {
     .join(" of ")
 }
 
+function checkConnection(term) {
+  let eventSource = new EventSource(
+    global.baseURL + "/check-connection",
+    { withCredentials: false }
+  );
+  eventSource.onmessage = function(event) {
+    let eventObject = JSON.parse(event.data);
+    if (eventObject.alive) {
+      term.echo(`Server is alive. Count: ${eventObject.count}`);
+    }
+  }
+  return eventSource;
+}
+
+function pingServer() {
+  let term = $.terminal.active();
+  term.echo("Checking connection to server.");
+  let eventSource = checkConnection(term);
+  term.read("press Enter to stop ").then(function() {
+    eventSource.close();
+  });
+}
+
+function help() {
+  let term = $.terminal.active();
+  term.echo("List of currently supported commands:");
+  for (var key of Object.keys(global.helpMessages)) {
+    term.echo(`${key}: ${global.helpMessages[key]}`);
+  }
+}
+
+function sha256() {
+  let term = $.terminal.active();
+  term.echo("SHA-256 hash of " + str + ":");
+  fetch(`${global.baseURL}/hash/sha256?s=${str}`)
+    .then((response) => response.text())
+    .then((text) => term.echo(text));
+}
+
 function gotoLocation(destLocation) {
   let term = $.terminal.active();
   fetch(
@@ -91,20 +131,6 @@ function gotoLocation(destLocation) {
       );
     }
   });
-}
-
-function checkConnection(term) {
-  const eventSource = new EventSource(
-    global.baseURL + "/check-connection",
-    { withCredentials: false }
-  );
-  eventSource.onmessage = function(event) {
-    let eventObject = JSON.parse(event.data);
-    if (eventObject.alive) {
-      term.echo(`Server is alive. Count: ${eventObject.count}`);
-    }
-  }
-  return eventSource;
 }
 
 function login() {
@@ -190,148 +216,144 @@ function logout() {
   }
 }
 
-// TODO refactor the functions to be freestanding rather than literals
+function newUser() {
+  let term = $.terminal.active();
+  getCredentials(term, "Enter your desired username: ", "Enter your desired password: ", function() {
+    fetch(
+      `${global.baseURL}/user/new-user?username=${global.user.username}&password=${global.user.password}`,
+      { method: "POST" }
+    ).then((response) => response.text()).then((text) => term.echo(text));
+  });
+}
+
+function adminTeleport(destLocation) {
+  let term = $.terminal.active();
+  fetch(
+    global.baseURL +
+    "/game/tp?username=" + global.user.username +
+    "&password=" + global.user.password +
+    "&new_location=" + destLocation
+  ).then(response => response.json()).then(function(responseObject) {
+    if (responseObject.succeeded) {
+      term.echo(responseObject.info);
+    } else {
+      term.error("Unable to move your character.\nReason: " + responseObject["err"]);
+    }
+  });
+}
+
+function map() {
+  let term = $.terminal.active();
+  fetch(
+    `${global.baseURL}/game/map?username=${global.user.username}&password=${global.user.password}`
+  ).then(response => response.json()).then(function(responseObject) {
+    if (responseObject.succeeded) {
+      term.echo("Locations adjacent to you (click to travel to a location):");
+      for (var locationId of responseObject.locations) {
+        let link =
+          `<a href="javascript:void(0);"
+            onclick="gotoLocation('${locationId}');"
+            style="color:#FFFF00">${toHumanReadable(locationId)}</a>`;
+        term.echo($(link));
+      }
+    } else {
+      term.error("Unable to retrieve the requested data.\nReason: " + responseObject["err"]);
+    }
+  });
+}
+
+function openChest() {
+  let term = $.terminal.active();
+  if (!global.user.isLoggedIn) {
+    term.error("You are not logged in.");
+  } else if (global.activeTreasureChest === null) {
+    term.error("You are not near a treasure chest.");
+  } else {
+    term.echo("You open the treasure chest.");
+    if (global.activeTreasureChest.contents.length === 0) {
+      term.echo("The chest is empty.");
+    } else {
+      term.echo("The chest contains the following items:");
+      for (var item of global.activeTreasureChest.contents) {
+        term.echo(item.name);
+      }
+      term.echo("You take the items from the chest and add them to your inventory.");
+    }
+    fetch(
+      global.baseURL +
+      "/game/close-chest?username=" + global.user.username +
+      "&password=" + global.user.password
+    ).then(response => response.json()).then(function(responseObject) {
+      term.echo(responseObject.info);
+      global.activeTreasureChest = null;
+    });
+  }
+}
+
+function inventory() {
+  let term = $.terminal.active();
+  if (!global.user.isLoggedIn) {
+    term.error("You are not logged in.");
+  } else {
+    fetch(
+      global.baseURL +
+      "/user/inventory?username=" + global.user.username +
+      "&password=" + global.user.password
+    ).then(response => response.json()).then(function(responseObject) {
+      if (responseObject.succeeded) {
+        responseObject.inventory.forEach(function(item) {
+          term.echo(global.divider);
+          term.echo(`Item: ${item.name} (quantity ${item.qty})`);
+          term.echo(`Rarity: ${item.rarity}`);
+          term.echo(`Description: ${item.description}`);
+        });
+      } else {
+        term.error("Unable to get inventory.");
+        term.error("Reason: " + responseObject.err);
+      }
+    });
+  }
+}
+
+function say(message) {
+  let term = $.terminal.active();
+  fetch(
+    global.baseURL +
+    "/game/say?username=" + global.user.username +
+    "&password=" + global.user.password +
+    "&message=" + message,
+    { method: "POST" }
+  ).then(response => response.text()).then(function(response) {
+    if (response !== "Ok") {
+      term.error("Your message was not sent.");
+      term.error("Error message: " + response);
+    }
+  });
+}
+
 function setUpTerminal() {
   $("#main").terminal({
-    "help": function() {
-      let term = this;
-      term.echo("List of currently supported commands:");
-      for (var key of Object.keys(global.helpMessages)) {
-        term.echo(`${key}: ${global.helpMessages[key]}`);
-      }
-    },
-    "echo": function(str) {
-      this.echo(str);
-    },
-    "sha256": function(str) {
-      let term = this;
-      term.echo("SHA-256 hash of " + str + ":");
-      fetch(`${global.baseURL}/hash/sha256?s=${str}`)
-        .then((response) => response.text())
-        .then((text) => term.echo(text));
-    },
-    "new-user": function() {
-      let term = this;
-      getCredentials(term, "Enter your desired username: ", "Enter your desired password: ", function() {
-        fetch(
-          `${global.baseURL}/user/new-user?username=${global.user.username}&password=${global.user.password}`,
-          { method: "POST" }
-        ).then((response) => response.text()).then((text) => term.echo(text));
-      });
-    },
+
+    // utility commands
+    "echo": function(str) { this.echo(str); },
+    "help": help,
+    "sha256": sha256,
+    "check-connection": pingServer,
+    "conn": pingServer,
+
+    // account management commands
+    "new-user": newUser,
     "login": login,
     "logout": logout,
-    "check-connection": function() {
-      this.echo("Checking connection to server.");
-      let eventSource = checkConnection(this);
-      this.read("press Enter to stop").then(function() {
-        eventSource.close();
-      });
-    },
-    "tp": function(dest_location) {
-      let term = this;
-      fetch(
-        global.baseURL +
-        "/game/tp?username=" + global.user.username +
-        "&password=" + global.user.password +
-        "&new_location=" + dest_location
-      ).then(response => response.json()).then(function(responseObject) {
-        if (responseObject.succeeded) {
-          term.echo(responseObject.info);
-        } else {
-          term.error("Unable to move your character.\nReason: " + responseObject["err"]);
-        }
-      });
-    },
-    "goto": function(destLocation) {
-      let term = this;
-      gotoLocation(destLocation);
-    },
-    "map": function() {
-      let term = this;
-      fetch(
-        `${global.baseURL}/game/map?username=${global.user.username}&password=${global.user.password}`
-      ).then(response => response.json()).then(function(responseObject) {
-        if (responseObject.succeeded) {
-          term.echo("Locations adjacent to you (click to travel to a location):");
-          for (var locationId of responseObject.locations) {
-            let link =
-              `<a href="javascript:void(0);"
-                onclick="gotoLocation('${locationId}');"
-                style="color:#FFFF00">${toHumanReadable(locationId)}</a>`;
-            term.echo($(link));
-          }
-        } else {
-          term.error("Unable to retrieve the requested data.\nReason: " + responseObject["err"]);
-        }
-      });
-    },
-    "open-chest": function() {
-      let term = this;
-      if (!global.user.isLoggedIn) {
-        term.error("You are not logged in.");
-      } else if (global.activeTreasureChest === null) {
-        term.error("You are not near a treasure chest.");
-      } else {
-        term.echo("You open the treasure chest.");
-        if (global.activeTreasureChest.contents.length === 0) {
-          term.echo("The chest is empty.");
-        } else {
-          term.echo("The chest contains the following items:");
-          for (var item of global.activeTreasureChest.contents) {
-            term.echo(item.name);
-          }
-          term.echo("You take the items from the chest and add them to your inventory.");
-        }
-        fetch(
-          global.baseURL +
-          "/game/close-chest?username=" + global.user.username +
-          "&password=" + global.user.password
-        ).then(response => response.json()).then(function(responseObject) {
-          term.echo(responseObject.info);
-          global.activeTreasureChest = null;
-        });
-      }
-    },
-    "inventory": function() {
-      let term = this;
-      if (!global.user.isLoggedIn) {
-        term.error("You are not logged in.");
-      } else {
-        fetch(
-          global.baseURL +
-          "/user/inventory?username=" + global.user.username +
-          "&password=" + global.user.password
-        ).then(response => response.json()).then(function(responseObject) {
-          if (responseObject.succeeded) {
-            responseObject.inventory.forEach(function(item) {
-              term.echo(global.divider);
-              term.echo(`Item: ${item.name} (quantity ${item.qty})`);
-              term.echo(`Rarity: ${item.rarity}`);
-              term.echo(`Description: ${item.description}`);
-            });
-          } else {
-            term.error("Unable to get inventory.");
-            term.error("Reason: " + responseObject.err);
-          }
-        });
-      }
-    },
-    "say": function(message) {
-      let term = this;
-      fetch(
-        global.baseURL +
-        "/game/say?username=" + global.user.username +
-        "&password=" + global.user.password +
-        "&message=" + message,
-        { method: "POST" }
-      ).then(response => response.text()).then(function(response) {
-        if (response !== "Ok") {
-          term.error("Your message was not sent.");
-          term.error("Error message: " + response);
-        }
-      });
-    }
+
+    // game commands
+    "tp": adminTeleport,
+    "goto": gotoLocation,
+    "map": map,
+    "open-chest": openChest,
+    "inventory": inventory,
+    "say": say
+
   }, {
     greetings: `Welcome to Mudnix
 Client v${global.frontendVersion} backend v${global.backendVersion} (pre-alpha)

@@ -95,7 +95,7 @@ function pingServer() {
 function help() {
   let term = $.terminal.active();
   term.echo("List of currently supported commands:");
-  for (var key of Object.keys(global.helpMessages)) {
+  for (let key of Object.keys(global.helpMessages)) {
     term.echo(`${key}: ${global.helpMessages[key]}`);
   }
 }
@@ -249,7 +249,7 @@ function map() {
   ).then(response => response.json()).then(function(responseObject) {
     if (responseObject.succeeded) {
       term.echo("Locations adjacent to you (click to travel to a location):");
-      for (var locationId of responseObject.locations) {
+      for (let locationId of responseObject.locations) {
         let link =
           `<a href="javascript:void(0);"
             onclick="gotoLocation('${locationId}');"
@@ -274,7 +274,7 @@ function openChest() {
       term.echo("The chest is empty.");
     } else {
       term.echo("The chest contains the following items:");
-      for (var item of global.activeTreasureChest.contents) {
+      for (let item of global.activeTreasureChest.contents) {
         term.echo(item.name);
       }
       term.echo("You take the items from the chest and add them to your inventory.");

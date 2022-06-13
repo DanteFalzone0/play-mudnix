@@ -1,6 +1,6 @@
 let global = {
   baseURL: "https://mudnix.dantefalzone.repl.co",
-  frontendVersion: "0.4.3",
+  frontendVersion: "0.4.4",
   backendVersion: null,
 
   messageEventSource: null,
@@ -147,6 +147,7 @@ function login() {
           term.echo("You have successfully logged in.");
           term.echo("Remember to log out before you leave so your character will be safe.");
           term.echo(global.divider);
+
           global.messageEventSource = new EventSource(
             global.baseURL +
             "/game/message-queue?username=" + global.user.username +
@@ -176,10 +177,10 @@ function login() {
           global.autoLogoutEventSource.onmessage = function(event) {
             let eventObject = JSON.parse(event.data);
             if (eventObject.succeeded && eventObject.info === "logout") {
-              term.error("You have been automatically logged out due to inactivity.");
               logout();
+              term.error("You have been automatically logged out due to inactivity.");
             }
-          }
+          };
 
           term.set_prompt(responseObject.username + "> ");
           term.echo(responseObject.info);

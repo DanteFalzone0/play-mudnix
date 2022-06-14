@@ -1,6 +1,6 @@
 let global = {
   baseURL: "https://mudnix.dantefalzone.repl.co",
-  frontendVersion: "0.4.4",
+  frontendVersion: "0.5.0",
   backendVersion: null,
 
   messageEventSource: null,
@@ -29,7 +29,9 @@ let global = {
     "open-chest": "opens a treasure chest if you've found one",
     "inventory": "shows you what's in your inventory",
     "check-connection": "listen to see if the server is online",
-    "conn": "alias for `check-connection`"
+    "conn": "alias for `check-connection`",
+    "whos-here": "tells you who is in your area in-game",
+    "w": "alias for `whos-here`"
   },
 
   activeTreasureChest: null
@@ -332,6 +334,33 @@ function say(message) {
   });
 }
 
+function whosHere() {
+  let term = $.terminal.active();
+  if (!global.user.isLoggedIn) {
+    term.error("You are not logged in.");
+  } else {
+    fetch(
+      global.baseURL +
+      "/game/whos-here?username=" + global.user.username +
+      "&password=" + global.user.password
+    ).then(response => response.json()).then(function(responseObject) {
+      if (responseObject.succeeded) {
+        term.echo(`Your location is the ${toHumanReadable(responseObject.active_location)}.`);
+        let nearbyUsers = responseObject.nearby_users
+          .filter(user => user !== global.user.username);
+        if (nearbyUsers.length === 0) {
+          term.echo("No one else is here.");
+        } else {
+          term.echo("Other users that are here:");
+          nearbyUsers.forEach(user => term.echo(user));
+        }
+      } else {
+        term.error("Unable to complete request. Reason: " + responseObject.err);
+      }
+    });
+  }
+}
+
 function setUpTerminal() {
   $("#main").terminal({
 
@@ -353,7 +382,9 @@ function setUpTerminal() {
     "map": map,
     "open-chest": openChest,
     "inventory": inventory,
-    "say": say
+    "say": say,
+    "whos-here": whosHere,
+    "w": whosHere
 
   }, {
     greetings: `Welcome to Mudnix

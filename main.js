@@ -1,6 +1,6 @@
 let global = {
   baseURL: "https://mudnix.dantefalzone.repl.co",
-  frontendVersion: "0.5.0",
+  frontendVersion: "0.5.1",
   backendVersion: null,
 
   messageEventSource: null,
@@ -362,7 +362,7 @@ function whosHere() {
 }
 
 function setUpTerminal() {
-  $("#main").terminal({
+  $("body").terminal({
 
     // utility commands
     "echo": function(str) { this.echo(str); },
@@ -394,8 +394,6 @@ Type "new-user" to create a new account.
 Type "login" if you already have an account.
 Type "help" for a list of commands.`,
     name: "mudnix",
-    height: 480,
-    width: 800,
     prompt: "mudnix> "
   });
 }

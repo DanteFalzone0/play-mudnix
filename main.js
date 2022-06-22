@@ -1,6 +1,6 @@
 let global = {
   baseURL: "https://mudnix.dantefalzone.repl.co",
-  frontendVersion: "0.5.1",
+  frontendVersion: "0.5.2",
   backendVersion: null,
 
   messageEventSource: null,
@@ -18,6 +18,7 @@ let global = {
 
   helpMessages: {
     "help": "print a list of all commands",
+    "clear": "try it and see ;)",
     "echo \"<string>\"": "prints <string> to stdout",
     "sha256 \"<string>\"": "prints the SHA-256 hash of <string> to stdout",
     "new-user": "create a new account",
@@ -36,6 +37,14 @@ let global = {
 
   activeTreasureChest: null
 };
+
+const mudnixAsciiArt = `\
+███╗   ███╗██╗   ██╗     ██╗███╗   ██╗██╗██╗  ██╗
+████╗ ████║██║   ██║     ██║████╗  ██║╚═╝╚██╗██╔╝
+██╔████╔██║██║   ██║ ██████║██╔██╗ ██║██║ ╚███╔╝
+██║╚██╔╝██║██║   ██║██╔══██║██║╚██╗██║██║ ██╔██╗
+██║ ╚═╝ ██║╚██████╔╝╚██████║██║ ╚████║██║██╔╝ ██╗
+╚═╝     ╚═╝ ╚═════╝  ╚═════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝`;
 
 function getCredentials(term, usernamePrompt, passwordPrompt, callback) {
   term.read(usernamePrompt).then(function(username) {
@@ -387,7 +396,7 @@ function setUpTerminal() {
     "w": whosHere
 
   }, {
-    greetings: `Welcome to Mudnix
+    greetings: `${mudnixAsciiArt}
 Client v${global.frontendVersion} backend v${global.backendVersion} (pre-alpha)
 ${global.divider}
 Type "new-user" to create a new account.
